@@ -1,0 +1,115 @@
+---
+title: "Fiches Belges"
+author: "Remco Niggebrugge"
+date: "01/29/2015"
+output: html_document
+---
+
+This RMarkdown file will create Fiches Belges statistics for the EJN website. Some pre-processing of the raw server-log files is required. Starting from these raw files, the following steps need to be taken prior to running this processing code.
+
+* include only lines matching " /ejn/ " or ".aspx"
+* exclude all files matching " 443 " or "Error" or "LostSession" or "spider"
+* from the remaining lines, only keep columns 1,5 and 6 (date, uri, query)
+* 
+
+####Preprocessing
+
+Step 1: grepping only webpages, per day.
+
+Assuming shell is on folder "0_raw-files"
+
+<pre>
+for i in *.log   
+do
+cat $i | grep -i " /ejn/ \|.aspx" | grep -vi "spider\| 443 \|ErrorPage\|LostSession" > ../1_processed-days/$i
+done
+
+for i in *.log
+do
+awk '{print $1,$5,$6}' ../1_processed-days/$i > ../2_stripped-days/$i
+done
+
+cat ../2_stripped-days/u_ex141* > ../4_quarters/2014Q4.txt
+
+for i in 10 11 12
+do
+cat ../2_stripped-days/u_ex14$i* > ../3_stripped-months/2014-$i.txt
+done
+</pre>
+
+####Loading
+
+Libraries:
+
+```{r}
+library(dplyr)
+library(tidyr)
+```
+
+Processing Q4 2014, first load table:
+
+```{r load-data, cache=TRUE}
+d <- read.table("../4_quarters/2014Q4.txt", sep="", stringsAsFactors = FALSE)
+#d <- read.table("../3_stripped-months/2014-11.txt", sep="", stringsAsFactors = FALSE)
+```
+
+Reshape data and only keep Fiches Belges Results pages:
+
+```{r filter-and-reshape, cache=TRUE}
+d <- d[,2:3]
+names(d) <- c("u","q")
+d <- d[grep("FichesBelgesResult.aspx",d$u),]
+d <- d[grep("measure=[0-9]*&country=[0-9A-Z]*&other=", d$q),]
+d$q <- gsub("measure=","",d$q)
+d$q <- gsub("&country="," ",d$q)
+d$q <- gsub("&other="," ",d$q)
+```
+
+```{r separate-gathering, cache=TRUE}
+d <- separate(d, q, into=c("measure","country", "other"), sep=" " )
+d <- d[,2:4]
+d <- gather(d,temp, country,-measure)
+d <- d[,c(1,3)]
+d <- d[grep("^[0-9A-Z]", d$country),]
+d$c <- as.numeric(d$country)
+```
+
+Fixing countries codes:
+
+```{r fixing-country-code, cache=TRUE}
+source("../support-files/country-codes.R")
+for(i in 1:dim(countries)[[1]]){
+        code = countries$code[i]
+        short = countries$short[i]
+        d$c[d$country==short] <- code
+        }
+
+## remove entries did still did not match anything
+d <- d[!is.na(d$c),]
+d <- merge(d, countries, by.x="c", by.y="code")
+d <- d[,c(2,4)]
+names(d) <- c("measure","country")
+```
+
+We are finally in a position to group the results, we are not interested in individual consultations, but in numbers per measure, per country.
+
+```{r summarize, cache=TRUE}
+g     <- group_by(d, measure, country)
+stats <- summarize(g, n = n())
+d     <- as.data.frame(stats)
+
+## for plotting I prefer to have 0s values than non-existing entries
+for(m in unique(d$measure)){
+        for(c in unique(d$country)){
+                d <- rbind(d, c(m, c, 0))
+        }
+}
+
+d$n   <- as.numeric(d$n)
+
+g     <- group_by(d, measure, country)
+stats <- summarize(g, n = sum(n))
+d     <- as.data.frame(stats)
+
+d     <- arrange(d, desc(n))
+```
