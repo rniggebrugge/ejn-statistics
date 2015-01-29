@@ -94,7 +94,7 @@ names(d) <- c("measure","country")
 We are finally in a position to group the results, we are not interested in individual consultations, but in numbers per measure, per country.
 
 ```{r summarize, cache=TRUE}
-g     <- group_by(d, measure, country)
+g     <- group_by(d, measure, country) 
 stats <- summarize(g, n = n())
 d     <- as.data.frame(stats)
 
@@ -107,9 +107,24 @@ for(m in unique(d$measure)){
 
 d$n   <- as.numeric(d$n)
 
-g     <- group_by(d, measure, country)
+g     <- group_by(d, measure,  country)
 stats <- summarize(g, n = sum(n))
 d     <- as.data.frame(stats)
+```
 
-d     <- arrange(d, desc(n))
+Creating a table with countries as column names and measures as row names. Then adding totals per column/row.
+
+```{r spreading-table, cache=TRUE}
+dd <- spread(d, country, n)
+rownames(dd) <- dd[,1]
+dd <- select(dd,c(-1))
+names(dd) <- countries$short
+
+dd <- cbind(dd, apply(dd,1,sum))
+dd <- rbind(dd, apply(dd,2,sum))
+names(dd)[dim(dd)[2]] <- "+"
+rownames(dd)[dim(dd)[1]] <- "+"
+
+dd
+
 ```
