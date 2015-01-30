@@ -1,0 +1,75 @@
+---
+title: "General Statistics"
+author: "Remco Niggebrugge"
+date: "29 Jan 2015"
+output: html_document
+---
+
+This file reports basic statistics from the server log files. 
+
+<!-- 
+```{r libraries, results='hide', echo=FALSE}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+```
+-->
+
+####Load files
+
+```{r load-files, cache=TRUE}
+oct <- read.table("../3_stripped-months/2014-10.txt", sep="", stringsAsFactors = F)
+nov <- read.table("../3_stripped-months/2014-11.txt", sep="", stringsAsFactors = F)
+dec <- read.table("../3_stripped-months/2014-12.txt", sep="", stringsAsFactors = F)
+
+oct$month <- "October 2014"
+nov$month <- "November 2014"
+dec$month <- "December 2014"
+
+d <- rbind(oct, nov, dec)
+d <- select(d, -1)
+names(d) <- c("uri","q","month")
+
+d$uri <- tolower(d$uri)
+d <- d[-grep("connector|filemanager|error", d$uri), ]
+d$uri <- gsub("/ejn/","", d$uri)
+d$uri <- gsub("ejn_","", d$uri)
+d$uri <- gsub("/","", d$uri)
+d$uri <- gsub("ejn_home.aspx|default","homepage", d$uri)
+d$uri <- gsub("(.*).aspx", "\\1", d$uri)
+d$uri <- gsub("^$", "homepage", d$uri)
+d$uri <- gsub("static.*", "static", d$uri)
+
+d$section <- d$uri
+d$section[grep("homepage", d$uri)] <- "homepage"
+d$section[grep("atlas", d$uri)] <- "atlas"
+d$section[grep("^lib|library", d$uri)] <- "library"
+d$section[grep("login|contactpoint", d$uri)] <- "contact-points"
+d$section[grep("compendium|wizard", d$uri)] <- "compendiums"
+d$section[grep("fiche", d$uri)] <- "fiches-belges"
+d$section[grep("search", d$uri)] <- "search"
+d$section[grep("news", d$uri)] <- "news"
+d$section[grep("events", d$uri)] <- "events"
+```
+
+```{r sowhatisthere, cache=TRUE}
+g <- group_by(d, uri)
+s <- summarize(g, n=n())
+s <- as.data.frame(s)
+s <- arrange(s, desc(n))
+
+#dim(s)
+#s
+```
+
+```{r queries}
+dd <- filter(d, q!="", q!="-")
+dd$uq <- paste(dd$uri,substr(dd$q,1,35), sep="?")
+g <- group_by(dd, uq)
+s <- summarize(g, n=n())
+s <- as.data.frame(s)
+s <- arrange(s, desc(n))
+
+dim(s)
+filter(s, n>500)
+```

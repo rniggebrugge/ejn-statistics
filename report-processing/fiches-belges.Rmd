@@ -44,6 +44,8 @@ Libraries:
 ```{r}
 library(dplyr)
 library(tidyr)
+library(xtable)
+library(ggplot2)
 ```
 
 Processing Q4 2014, first load table:
@@ -98,7 +100,7 @@ g     <- group_by(d, measure, country)
 stats <- summarize(g, n = n())
 d     <- as.data.frame(stats)
 
-## for plotting I prefer to have 0s values than non-existing entries
+## for plotting I prefer to have 0s values rather than non-existing entries
 for(m in unique(d$measure)){
         for(c in unique(d$country)){
                 d <- rbind(d, c(m, c, 0))
@@ -122,9 +124,109 @@ names(dd) <- countries$short
 
 dd <- cbind(dd, apply(dd,1,sum))
 dd <- rbind(dd, apply(dd,2,sum))
-names(dd)[dim(dd)[2]] <- "+"
-rownames(dd)[dim(dd)[1]] <- "+"
+names(dd)[dim(dd)[2]] <- "\\+"
+rownames(dd)[dim(dd)[1]] <- "\\+"
+```
 
-dd
+###Fiches Belges Consultations for each country/Fiche combination
 
+```{r results='asis', cache=TRUE}
+temp <- as.matrix(dd)
+temp[temp==0]<-NA
+dd <- as.data.frame(temp)
+
+print(xtable(dd, digits=0), NA.string="\\-", type="html")
+```
+
+####Graphics
+
+```{r total-per-fiche, cache=TRUE}
+d$group <- substr(d$measure,1,1)
+group <- group_by(d, measure, group)
+stats <- summarize(group, n=sum(n))
+stats <- as.data.frame(stats)
+stats$measure <- factor(stats$measure, levels=stats$measure)
+
+g<- ggplot(stats, aes(x=measure, y=n, fill=group)) +
+    geom_bar(stat="identity") +
+    theme(axis.text.x = element_text(angle=90, hjust=1, vjust=.5)) +
+    geom_text(aes(label=measure), angle=90, hjust=1, vjust=0.5, size=3.2, colour="#000099") +
+    geom_text(aes(label=n), angle=45, hjust=0, vjust=-0.25, size=3.2, colour="#009900") +
+    ggtitle("Total consultations per Fiche Belge") + 
+    xlab("Fiche Belge") + ylab("Consultations")
+print(g)
+```
+
+```{r total-per-fiche-separate-countries, cache=TRUE}
+d$group <- substr(d$measure,1,1)
+for(i in unique(countries$name)){
+    dd <- filter(d, country==i)
+    group <- group_by(dd, measure, group)
+    stats <- summarize(group, n=sum(n))
+    stats <- as.data.frame(stats)
+    stats$measure <- factor(stats$measure, levels=stats$measure)
+    
+    g<- ggplot(stats, aes(x=measure, y=n, fill=group)) +
+        geom_bar(stat="identity") +
+        theme(axis.text.x = element_text(angle=90, hjust=1, vjust=.5)) +
+        geom_text(aes(label=measure), angle=90, hjust=1, vjust=0.5, size=3.2, colour="#000099") +
+        geom_text(aes(label=n), angle=45, hjust=0, vjust=-0.25, size=3.2, colour="#009900") +
+        ggtitle(paste("Total consultations per Fiche Belge for", i)) + 
+        xlab("Fiche Belge") + ylab("Consultations")
+    print(g)
+}
+```
+
+
+```{r per-country, cache=TRUE}
+d$group <- substr(d$measure,1,1)
+group <- group_by(d, country, group)
+stats <- summarize(group, n=sum(n))
+stats <- as.data.frame(stats)
+stats$country <- factor(stats$country, levels=stats$country)
+
+g<- ggplot(stats, aes(x=country, y=n, fill=group)) +
+    geom_bar(stat="identity") +
+    theme(axis.text.x = element_text(angle=90, hjust=1, vjust=.5)) +
+    ggtitle("Total consultations per country") + 
+    xlab("") + ylab("Consultations")
+print(g)
+```
+
+```{r per-fiche-per-country, cache=TRUE}
+d$group <- substr(d$measure,1,1)
+for (i in unique(d$group)){
+    dd <- filter(d, group==i)
+    group <- group_by(dd, country, group)
+    stats <- summarize(group, n=sum(n))
+    stats <- as.data.frame(stats)
+    stats$country <- factor(stats$country, levels=stats$country)
+    
+    g<- ggplot(stats, aes(x=country, y=n)) +
+        geom_bar(stat="identity", fill="#0099ff") +
+        theme(axis.text.x = element_text(angle=90, hjust=1, vjust=.5)) +
+        geom_text(aes(label=n), angle=45, hjust=0, vjust=-0.25, size=3.2, colour="#000099") +
+        ggtitle(paste("Total consultations per country for group", i)) + 
+        xlab("") + ylab("Consultations")
+    print(g)
+}
+```
+
+```{r per-fiche-per-country-single-measure, cache=TRUE}
+d$group <- substr(d$measure,1,1)
+for (i in unique(d$measure)){
+    dd <- filter(d, measure==i)
+    group <- group_by(dd, country, group)
+    stats <- summarize(group, n=sum(n))
+    stats <- as.data.frame(stats)
+    stats$country <- factor(stats$country, levels=stats$country)
+    
+    g<- ggplot(stats, aes(x=country, y=n)) +
+        geom_bar(stat="identity", fill="#0099ff") +
+        theme(axis.text.x = element_text(angle=90, hjust=1, vjust=.5)) +
+        geom_text(aes(label=n), angle=45, hjust=0, vjust=-0.25, size=3.2, colour="#000099") +
+        ggtitle(paste("Total consultations per country for measure", i)) + 
+        xlab("") + ylab("Consultations")
+    print(g)
+}
 ```
