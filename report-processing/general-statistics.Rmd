@@ -58,8 +58,18 @@ s <- summarize(g, n=n())
 s <- as.data.frame(s)
 s <- arrange(s, desc(n))
 
-#dim(s)
-#s
+dim(s)
+s
+```
+
+```{r sowhatisthere2, cache=TRUE}
+g <- group_by(d, section)
+s <- summarize(g, n=n())
+s <- as.data.frame(s)
+s <- arrange(s, desc(n))
+
+dim(s)
+s
 ```
 
 ```{r queries}
@@ -71,5 +81,5 @@ s <- as.data.frame(s)
 s <- arrange(s, desc(n))
 
 dim(s)
-filter(s, n>500)
+filter(s, n>5)
 ```
