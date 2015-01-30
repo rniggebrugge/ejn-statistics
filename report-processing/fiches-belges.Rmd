@@ -140,13 +140,14 @@ print(xtable(dd, digits=0), NA.string="\\-", type="html")
 
 ####Graphics
 
-```{r total-per-fiche, cache=TRUE}
+```{r total-per-fiche}
 d$group <- substr(d$measure,1,1)
 group <- group_by(d, measure, group)
 stats <- summarize(group, n=sum(n))
 stats <- as.data.frame(stats)
 stats$measure <- factor(stats$measure, levels=stats$measure)
 
+par(bg="white")
 g<- ggplot(stats, aes(x=measure, y=n, fill=group)) +
     geom_bar(stat="identity") +
     theme(axis.text.x = element_text(angle=90, hjust=1, vjust=.5)) +
@@ -155,9 +156,11 @@ g<- ggplot(stats, aes(x=measure, y=n, fill=group)) +
     ggtitle("Total consultations per Fiche Belge") + 
     xlab("Fiche Belge") + ylab("Consultations")
 print(g)
+dev.copy(png,"tot_fbs.png", width=700)
+dev.off()
 ```
 
-```{r total-per-fiche-separate-countries, cache=TRUE}
+```{r total-per-fiche-separate-countries}
 d$group <- substr(d$measure,1,1)
 for(i in unique(countries$name)){
     dd <- filter(d, country==i)
@@ -173,12 +176,15 @@ for(i in unique(countries$name)){
         geom_text(aes(label=n), angle=45, hjust=0, vjust=-0.25, size=3.2, colour="#009900") +
         ggtitle(paste("Total consultations per Fiche Belge for", i)) + 
         xlab("Fiche Belge") + ylab("Consultations")
+    co <- countries$short[countries$name==i]
     print(g)
-}
+    dev.copy(png,paste("tot_",co,".png", sep=""), width=1000)
+    dev.off()
+    }
 ```
 
 
-```{r per-country, cache=TRUE}
+```{r per-country}
 d$group <- substr(d$measure,1,1)
 group <- group_by(d, country, group)
 stats <- summarize(group, n=sum(n))
@@ -191,9 +197,11 @@ g<- ggplot(stats, aes(x=country, y=n, fill=group)) +
     ggtitle("Total consultations per country") + 
     xlab("") + ylab("Consultations")
 print(g)
+dev.copy(png,"tot_countries.png", width=1000)
+dev.off()
 ```
 
-```{r per-fiche-per-country, cache=TRUE}
+```{r per-fiche-per-country}
 d$group <- substr(d$measure,1,1)
 for (i in unique(d$group)){
     dd <- filter(d, group==i)
@@ -212,7 +220,7 @@ for (i in unique(d$group)){
 }
 ```
 
-```{r per-fiche-per-country-single-measure, cache=TRUE}
+```{r per-fiche-per-country-single-measure}
 d$group <- substr(d$measure,1,1)
 for (i in unique(d$measure)){
     dd <- filter(d, measure==i)
@@ -228,5 +236,7 @@ for (i in unique(d$measure)){
         ggtitle(paste("Total consultations per country for measure", i)) + 
         xlab("") + ylab("Consultations")
     print(g)
+    dev.copy(png,paste("tot_",i,".png", sep=""), width=1000)
+    dev.off()
 }
 ```
