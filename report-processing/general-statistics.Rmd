@@ -1,5 +1,5 @@
 ---
-title: "General Statistics"
+title: "General Statistics - Q4 2014"
 author: "Remco Niggebrugge"
 date: "29 Jan 2015"
 output: html_document
@@ -15,64 +15,193 @@ library(ggplot2)
 ```
 -->
 
-####Load files
-
-```{r load-files, cache=TRUE}
+```{r load-files, cache=FALSE   , echo=FALSE, results='hide'}
+period <- "Q4 2014"
 oct <- read.table("../3_stripped-months/2014-10.txt", sep="", stringsAsFactors = F)
 nov <- read.table("../3_stripped-months/2014-11.txt", sep="", stringsAsFactors = F)
 dec <- read.table("../3_stripped-months/2014-12.txt", sep="", stringsAsFactors = F)
 
-oct$month <- "October 2014"
+oct$month <- "January 2015"
 nov$month <- "November 2014"
 dec$month <- "December 2014"
 
-d <- rbind(oct, nov, dec)
+d <- rbind(oct,nov, dec)
 d <- select(d, -1)
-names(d) <- c("uri","q","month")
+names(d) <- c("uri","q")
 
 d$uri <- tolower(d$uri)
+
+# keep copy "pure" without any further processing, this will be used
+# to inspect uri+query combinations
+pure <- d
+
 d <- d[-grep("connector|filemanager|error", d$uri), ]
 d$uri <- gsub("/ejn/","", d$uri)
 d$uri <- gsub("ejn_","", d$uri)
 d$uri <- gsub("/","", d$uri)
-d$uri <- gsub("ejn_home.aspx|default","homepage", d$uri)
+d$uri <- gsub("ejn_home.aspx|default","home", d$uri)
 d$uri <- gsub("(.*).aspx", "\\1", d$uri)
-d$uri <- gsub("^$", "homepage", d$uri)
+d$uri <- gsub("^$", "home", d$uri)
 d$uri <- gsub("static.*", "static", d$uri)
 
-d$section <- d$uri
-d$section[grep("homepage", d$uri)] <- "homepage"
+d$section <- "other"
+d$uri[grep("home|homepage", d$uri)] <- "home"
+d$section[grep("home|homepage", d$uri)] <- "home"
 d$section[grep("atlas", d$uri)] <- "atlas"
 d$section[grep("^lib|library", d$uri)] <- "library"
 d$section[grep("login|contactpoint", d$uri)] <- "contact-points"
 d$section[grep("compendium|wizard", d$uri)] <- "compendiums"
 d$section[grep("fiche", d$uri)] <- "fiches-belges"
-d$section[grep("search", d$uri)] <- "search"
 d$section[grep("news", d$uri)] <- "news"
 d$section[grep("events", d$uri)] <- "events"
 ```
 
-```{r sowhatisthere, cache=TRUE}
-g <- group_by(d, uri)
-s <- summarize(g, n=n())
-s <- as.data.frame(s)
-s <- arrange(s, desc(n))
 
-dim(s)
-s
+### Atlas
+
+```{r atlas-stats, echo=FALSE}
+atlas <- d[grep("atlas",d$uri),]
+atlas <- atlas[grep("[Cc]ou=[0-9A-Z][0-9A-Z]", atlas$q),]
+atlas$q <- gsub(".*[Cc]ou=([0-9][0-9][0-9]|[A-Z][A-Z]).*", "\\1", atlas$q)
+atlas$c <- as.numeric(atlas$q)
+
+source("../support-files/country-codes.R")
+
+for(i in 1:dim(countries)[[1]]){
+        code = countries$code[i]
+        short = countries$short[i]
+        atlas$c[atlas$q==short] <- code
+        }
+
+atlas <- atlas[!is.na(atlas$c),]
+atlas <- merge(atlas, countries, by.x="c", by.y="code")
+
+g <- group_by(atlas, name)
+atlas <- summarize(g, n=n())
+atlas <- as.data.frame(atlas)
+atlas <- arrange(atlas, n)
+atlas$name <- factor(atlas$name, levels=atlas$name, ordered=TRUE)
+
+g <- ggplot( atlas, aes( x = name, y=n )) +
+     geom_bar(stat="identity", fill="#00cc66") +
+     geom_text(aes(label=n), hjust=1, vjust=0.5, size=3.2, colour="#000066") +
+     coord_flip() + 
+     xlab("") + ylab("Atlas sessions") +
+     ggtitle(paste("Atlas, sessions per country - ", period,sep=""))
+
+print(g)
 ```
 
-```{r sowhatisthere2, cache=TRUE}
+
+### Quicklinks
+
+```{r quicklinks, echo=FALSE}
+ql <- pure[grep("quick",pure$uri),]
+ql <- ql[grep("^id=[0-9][0-9].*", ql$q),]
+ql$q <- gsub("^id=([0-9][0-9]).*", "\\1", ql$q)
+
+ql$q <- gsub("28","status implementation", ql$q)
+ql$q <- gsub("23","draft mri certificate", ql$q)
+ql$q <- gsub("24","draft eaw", ql$q)
+ql$q <- gsub("25","mla atlas", ql$q)
+ql$q <- gsub("26","eaw atlas", ql$q)
+ql$q <- gsub("27","mri atlas", ql$q)
+ql$q <- gsub("22","draft rogatory letter", ql$q)
+
+g <- group_by(ql, q)
+ql <- summarize(g, n=n())
+ql <-as.data.frame(ql)
+ql <- arrange(ql, n)
+
+ql$q <- factor(ql$q, levels=ql$q, ordered=TRUE)
+
+g <- ggplot( ql, aes( x = q, y=n )) +
+     geom_bar(stat="identity", fill="#0099ff") +
+     geom_text(aes(label=n), hjust=1, vjust=0.5, size=3.2, colour="#000066") +
+     coord_flip() + 
+     xlab("") + ylab("Views") +
+     ggtitle(paste("Quick links - ", period,sep=""))
+
+print(g)
+```
+
+
+### Language choices
+
+```{r language-switch, echo=FALSE}
+sw <- pure[grep("Culture:([A-Z][A-Z])", pure$q), ]
+sw$qq <- sw$q
+sw$qq <- gsub(".*Culture:([A-Z][A-Z]).*", "\\1",  sw$qq)
+g  <- group_by(sw, qq)
+sw <- summarize(g, n=n())
+sw <- sw %>% as.data.frame %>% arrange(n)
+
+sw$qq <- factor(sw$qq, levels=sw$qq, ordered=TRUE)
+
+g <- ggplot( sw, aes( x = qq, y=n )) +
+     geom_bar(stat="identity", fill="#0099ff") +
+    geom_text(aes(label=n), hjust=1, vjust=0.5, size=3.2, colour="#000066") +
+     coord_flip() + 
+     xlab("") + ylab("# Language switches")  + 
+     ggtitle(paste("Language switches - ", period,sep=""))
+
+print(g)
+```
+
+
+### Pages
+
+```{r sowhatisthere, echo=FALSE}
+g <- group_by(d, uri)
+
+s <- summarize(g, n=n()    , section=section)
+s <- as.data.frame(s)
+s <- arrange(top_n(s, 20, n), n)
+
+s$uri <- factor(s$uri, levels=s$uri, ordered=TRUE)
+
+g <- ggplot( s, aes( x = uri, y=n , fill=section )) +
+     geom_bar(stat="identity") +
+    geom_text(aes(label=n), hjust=1, vjust=0.5, size=3.2, colour="#000066") +
+     coord_flip() + 
+     xlab("") + ylab("Views") +
+     ggtitle(paste("Pageviews - ", period,sep=""))
+
+print(g)
+
+```
+
+
+### Sections
+
+```{r sowhatisthere2, echo=FALSE}
 g <- group_by(d, section)
 s <- summarize(g, n=n())
 s <- as.data.frame(s)
+s <- arrange(top_n(s, 15, n), n)
+
+s$section <- factor(s$section, levels=s$section, ordered=TRUE)
+
+g <- ggplot( s, aes( x = section, y=n, fill=section )) +
+     geom_bar(stat="identity") +
+     coord_flip() + 
+    geom_text(aes(label=n), hjust=0, vjust=0.5, size=3.2, colour="#000099") +
+    xlab("") + ylab("Views") +
+    ylim(0,max(s$n)*1.2) +
+    ggtitle(paste("Sections viewed - ", period,sep=""))
+
+print(g)
+
 s <- arrange(s, desc(n))
 
-dim(s)
-s
+
+
 ```
 
-```{r queries}
+
+### Url/Query
+
+```{r queries, cache=FALSE, echo=FALSE}
 dd <- filter(d, q!="", q!="-")
 dd$uq <- paste(dd$uri,substr(dd$q,1,35), sep="?")
 g <- group_by(dd, uq)
@@ -80,6 +209,7 @@ s <- summarize(g, n=n())
 s <- as.data.frame(s)
 s <- arrange(s, desc(n))
 
-dim(s)
-filter(s, n>5)
+head(s)
+
+
 ```

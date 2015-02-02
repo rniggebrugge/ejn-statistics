@@ -48,16 +48,15 @@ library(xtable)
 library(ggplot2)
 ```
 
-Processing Q4 2014, first load table:
+Processing Q5 January, first load table:
 
-```{r load-data, cache=TRUE}
-d <- read.table("../4_quarters/2014Q4.txt", sep="", stringsAsFactors = FALSE)
-#d <- read.table("../3_stripped-months/2014-11.txt", sep="", stringsAsFactors = FALSE)
+```{r load-data, cache=FALSE}
+d <- read.table("../3_stripped-months/2015-01.txt", sep="", stringsAsFactors = FALSE)
 ```
 
 Reshape data and only keep Fiches Belges Results pages:
 
-```{r filter-and-reshape, cache=TRUE}
+```{r filter-and-reshape, cache=FALSE}
 d <- d[,2:3]
 names(d) <- c("u","q")
 d <- d[grep("FichesBelgesResult.aspx",d$u),]
@@ -67,7 +66,7 @@ d$q <- gsub("&country="," ",d$q)
 d$q <- gsub("&other="," ",d$q)
 ```
 
-```{r separate-gathering, cache=TRUE}
+```{r separate-gathering, cache=FALSE}
 d <- separate(d, q, into=c("measure","country", "other"), sep=" " )
 d <- d[,2:4]
 d <- gather(d,temp, country,-measure)
@@ -78,7 +77,7 @@ d$c <- as.numeric(d$country)
 
 Fixing countries codes:
 
-```{r fixing-country-code, cache=TRUE}
+```{r fixing-country-code, cache=FALSE}
 source("../support-files/country-codes.R")
 for(i in 1:dim(countries)[[1]]){
         code = countries$code[i]
@@ -95,7 +94,7 @@ names(d) <- c("measure","country")
 
 We are finally in a position to group the results, we are not interested in individual consultations, but in numbers per measure, per country.
 
-```{r summarize, cache=TRUE}
+```{r summarize, cache=FALSE}
 g     <- group_by(d, measure, country) 
 stats <- summarize(g, n = n())
 d     <- as.data.frame(stats)
@@ -116,7 +115,7 @@ d     <- as.data.frame(stats)
 
 Creating a table with countries as column names and measures as row names. Then adding totals per column/row.
 
-```{r spreading-table, cache=TRUE}
+```{r spreading-table, cache=FALSE}
 dd <- spread(d, country, n)
 rownames(dd) <- dd[,1]
 dd <- select(dd,c(-1))
@@ -130,7 +129,7 @@ rownames(dd)[dim(dd)[1]] <- "\\+"
 
 ###Fiches Belges Consultations for each country/Fiche combination
 
-```{r results='asis', cache=TRUE}
+```{r results='asis', cache=FALSE}
 temp <- as.matrix(dd)
 temp[temp==0]<-NA
 dd <- as.data.frame(temp)
